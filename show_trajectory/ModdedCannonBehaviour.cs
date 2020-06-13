@@ -22,9 +22,9 @@ namespace ShowTrajectory
         private bool isFirstFrame = true;
         private bool PredictCannonEnabled = false;
         private float speed;
-        private float totalTime = 10;
-        private float stepSize = 0.1F;
-        private int numSamples;
+        private float totalTime;
+        private float stepSize;
+        private int numSamples = 65536;
 
         private void Awake()
         {
@@ -58,12 +58,42 @@ namespace ShowTrajectory
 
         /// <summary>
         /// Draws the trajectory
-        /// </summary>
+        /// </summary> 
         public void SimulateUpdateAlways_PredictEnable()
         {
             Vector3 boltSpawnPos = transform.TransformPoint(BB.boltSpawnPos);
             Vector3 initialSpeed = transform.TransformVector(
                 BB.boltSpawnRot * Vector3.up) * speed;
+            float vy = initialSpeed.y;
+
+            float getTotalTime()
+            {
+                // We want the trajectory to go below ground a bit
+                float y0 = boltSpawnPos.y + 5;
+
+                float f(float time)
+                {
+                    float oneMinusECT = (float)(1 - Math.Exp(-c * time));
+                    return y0 + (vy + g / c) * oneMinusECT / c - g * time / c;
+                }
+                float fPrime(float time)
+                {
+                    return (float)((vy + g / c) * Math.Exp(-c * time) - g / c);
+                }
+                float fPrime2(float time)
+                {
+                    return (float)(-c * (vy + g / c) * Math.Exp(-c * time));
+                }
+                // calculate time to reach ground assuming there is no friction
+                float guess = (float)(vy + Math.Sqrt(vy * vy + 2 * y0 * g)) / g;
+                return MathUtils.Newton(f, guess, fprime: fPrime, fprime2: fPrime2);
+            }
+
+            totalTime = getTotalTime() + 0.01F;
+
+            // We are dividing by numSamples - 1 since we want the last data point
+            // to be below ground
+            stepSize = totalTime / (numSamples - 1);
             float t;
             int i;
             for (i = 0, t = 0; i < numSamples; ++i, t += stepSize)
@@ -71,7 +101,7 @@ namespace ShowTrajectory
                 float oneMinusECT = (float)(1 - Math.Exp(-c * t));
                 LR.SetPosition(i, boltSpawnPos +
                     new Vector3(initialSpeed.x * oneMinusECT / c,
-                    (initialSpeed.y + g / c) * oneMinusECT / c - g * t / c,
+                    (vy + g / c) * oneMinusECT / c - g * t / c,
                     initialSpeed.z * oneMinusECT / c));
             }
         }
@@ -91,13 +121,11 @@ namespace ShowTrajectory
             go.transform.SetParent(BB.transform);
             LR = go.GetComponent<LineRenderer>() ?? go.AddComponent<LineRenderer>();
             LR.useWorldSpace = true;
-            numSamples = (int)(totalTime / stepSize);
             LR.SetVertexCount(numSamples);
             LR.material = new Material(Shader.Find("Particles/Additive"));
             LR.SetColors(Color.red, Color.yellow);
             LR.SetWidth(0.5f, 0.5f);
             LR.enabled = true;
         }
-
     }
 }
