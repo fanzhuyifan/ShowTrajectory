@@ -74,8 +74,9 @@ namespace ShowTrajectory
             /// </summary>
             float getTotalTime(float v0)
             {
-                Vector3 initialSpeed = transform.TransformVector(
-                    BB.boltSpawnRot * Vector3.up) * v0;
+                // We need to normalize the rotation because of scaling issues.
+                Vector3 initialSpeed = transform.rotation * BB.boltSpawnRot
+                    * Vector3.up * v0;
                 float vy = initialSpeed.y;
                 // We want the trajectory to go below ground a bit
                 float y0 = boltSpawnPos.y + 5;
@@ -109,8 +110,8 @@ namespace ShowTrajectory
             /// </summary>
             void drawTrajectory(float v0, LineRenderer lineRenderer)
             {
-                Vector3 initialSpeed = transform.TransformVector(
-                    BB.boltSpawnRot * Vector3.up) * v0;
+                Vector3 initialSpeed = transform.rotation * BB.boltSpawnRot
+                    * Vector3.up * v0;
                 float vy = initialSpeed.y;
 
                 float t;
@@ -142,6 +143,7 @@ namespace ShowTrajectory
             speed = BB.StrengthSlider.Value * 60 - 1.5F;
 #if DEBUG
             ConsoleController.ShowMessage("cannon strength is " + BB.StrengthSlider.Value);
+            ConsoleController.ShowMessage("speed is " + speed);
 #endif
             void initializeLR(string name, out LineRenderer lineRenderer)
             {
